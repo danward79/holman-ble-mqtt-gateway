@@ -1,8 +1,8 @@
 # Holman iGardener BLE-to-MQTT Gateway
 
-Reverse-engineered Bluetooth Low Energy (BLE) to MQTT integration for the **Holman Vibrance Warm White Garden Light Controller** (`Vibrance_WW`), designed for **Home Assistant**.
+Reverse-engineered Bluetooth Low Energy (BLE) to MQTT integration for the **Holman (iGardener) Vibrance Warm White Garden Light Controller** (`Vibrance_WW`), designed for **Home Assistant**.
 
-This daemon acts as a persistent bridge between your Home Assistant instance and outdoor Holman Bluetooth lights. It translates Home Assistant light entity commands into the proprietary 20-byte binary protocol expected by the physical hardware.
+This daemon acts as a persistent bridge between your Home Assistant instance and outdoor Holman (iGardener) Bluetooth lights. It translates Home Assistant light entity commands into the proprietary 20-byte binary protocol expected by the physical hardware.
 
 ---
 
