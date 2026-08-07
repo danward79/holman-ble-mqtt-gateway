@@ -1,0 +1,17 @@
+[Unit]
+Description=Holman iGardener BLE MQTT Gateway Daemon
+After=network-online.target bluetooth.target avahi-daemon.service
+Wants=network-online.target bluetooth.target
+
+[Service]
+Type=simple
+User=YOUR_LINUX_USERNAME
+WorkingDirectory=/home/YOUR_LINUX_USERNAME/holman-ble-mqtt
+ExecStart=/home/YOUR_LINUX_USERNAME/holman_env/bin/python /home/YOUR_LINUX_USERNAME/holman-ble-mqtt/holman_mqtt_daemon.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

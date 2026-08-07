@@ -1,0 +1,11 @@
+# Python virtual environments
+*env*/
+venv/
+ENV/
+
+# Byte-compiled files
+__pycache__/
+*.py[cod]
+
+# OS files
+.DS_Store
