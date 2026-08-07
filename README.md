@@ -1,8 +1,8 @@
 # Holman iGardener BLE-to-MQTT Gateway
 
-Reverse-engineered Bluetooth Low Energy (BLE) to MQTT integration for the **Holman (iGardener) Vibrance Warm White Garden Light Controller** (`Vibrance_WW`), designed for **Home Assistant**.
+Reverse-engineered Bluetooth Low Energy (BLE) to MQTT integration for the **Holman Vibrance Warm White Garden Light Controller** (`Vibrance_WW`), designed for **Home Assistant**.
 
-This daemon acts as a persistent bridge between your Home Assistant instance and outdoor Holman (iGardener) Bluetooth lights. It translates Home Assistant light entity commands into the proprietary 20-byte binary protocol expected by the physical hardware.
+This daemon acts as a persistent bridge between your Home Assistant instance and outdoor Holman Bluetooth lights. It translates Home Assistant light entity commands into the proprietary 20-byte binary protocol expected by the physical hardware.
 
 ---
 
@@ -12,7 +12,7 @@ This daemon acts as a persistent bridge between your Home Assistant instance and
 * **Asynchronous Debouncing:** Bypasses intermediate lag states when adjusting brightness sliders, ensuring only the final target state is sent to the physical radio.
 * **Ephemeral Connection Resilience:** Specifically engineered to handle the controller's aggressive auto-disconnect power-saving behavior.
 * **Auto-Healing Service:** Handles network drops, Home Assistant reboots, and Linux Bluetooth stack restarts gracefully.
-* **Diagnostic Tooling:** Includes a standalone passive sniffer to discover hardware and verify signal strength without needing MQTT.
+* **Diagnostic & CLI Tooling:** Includes a passive sniffer to discover hardware and a direct command-line control tool for standalone testing.
 
 ---
 
@@ -24,8 +24,48 @@ This daemon acts as a persistent bridge between your Home Assistant instance and
 | **Target Controller** | Vibrance Warm White (WW) Garden Light Controller |
 | **Protocol** | Bluetooth Low Energy (BLE) |
 | **Manufacturer ID** | `0x0374` (`884`) |
-| **Handshake GATT Handle** | `0x0012` (`0000f004-0000-1000-8000-00805f9b34fb`) |
-| **Notify GATT Handle** | `0x000f` (`a876f003-7f10-4d70-b606-7df77c3eee0c`) |
+| **Write Characteristic** | `0000f004-0000-1000-8000-00805f9b34fb` (Handle `0x0012`) |
+| **Notify Characteristic** | `a876f003-7f10-4d70-b606-7df77c3eee0c` (Handle `0x000f`) |
+
+---
+
+## Protocol Specification
+
+The Holman Vibrance WW controller utilizes a 20-byte payload structure written over GATT characteristic `0000f004-0000-1000-8000-00805f9b34fb` with write-response enabled (`response=True`).
+
+### Connection Handshake
+Before sending state changes, notifications must be subscribed on `a876f003-7f10-4d70-b606-7df77c3eee0c`. A 20-byte zero-array authorization frame must then be transmitted:
+
+```text
+Handshake Frame: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+```
+
+### State & Dimming Payloads
+
+#### 1. OFF Payload (20 Bytes)
+```text
+00 2e ff 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+```
+
+#### 2. ON / Dimming Payload (20 Bytes)
+Brightness is represented as an 8-bit unsigned integer (`0x00` to `0xFF`) scaled from percentage values (`0%` to `100%`) at **Byte 18** (0-indexed):
+
+$$\text{Brightness Byte} = \left\lfloor \frac{\text{Percentage}}{100} \times 255 \right\rfloor$$
+
+```text
+Byte Map:
+[00-01] Header      : 00 2e
+[02-09] Command Block: 00 03 7f 11 00 14 1e 00
+[10-15] Padding     : ff 00 00 00 00 00
+[16-17] Fixed Scale : 64 00
+[18]    Brightness  : [0x00 - 0xFF]  <-- Target dimming value (0-255)
+[19]    Tail        : 00
+```
+
+* **Example (50% Brightness / 127 Dec / `0x7F`):**
+  `00 2e 00 03 7f 11 00 14 1e 00 ff 00 00 00 00 00 64 00 7f 00`
+* **Example (100% Brightness / 255 Dec / `0xFF`):**
+  `00 2e 00 03 7f 11 00 14 1e 00 ff 00 00 00 00 00 64 00 ff 00`
 
 ---
 
@@ -33,12 +73,14 @@ This daemon acts as a persistent bridge between your Home Assistant instance and
 
 ```text
 holman-ble-mqtt-gateway/
-├── holman_mqtt_daemon.py    # Main MQTT daemon service
-├── holman-mqtt.service      # Systemd service unit template
-├── README.md                # Documentation
-├── .gitignore               # Git exclusion rules
+├── holman_mqtt_daemon.py       # Main MQTT daemon service
+├── holman-mqtt.service         # Systemd service unit template
+├── README.md                   # Documentation
+├── LICENSE                     # MIT License
+├── .gitignore                  # Git exclusion rules
 └── tools/
-    └── holman_pure_sniffer.py # Diagnostic BLE sniffer utility
+    ├── holman_pure_sniffer.py  # Passive BLE sniffer utility
+    └── holman_direct_control.py# Command-line direct control tool
 ```
 
 ---
@@ -108,12 +150,19 @@ sudo journalctl -u holman-mqtt.service -f
 
 ---
 
-## Diagnostic Tools
+## Diagnostic & Testing Tools
 
-If you need to discover your controller's MAC address or test BLE signal reception before configuring MQTT, run the provided sniffer tool:
+### Passive BLE Sniffer
+To discover your controller's MAC address or verify airwave broadcasts:
 
 ```bash
 python tools/holman_pure_sniffer.py
 ```
 
-This utility listens passively for BLE advertisement packets containing Holman's Manufacturer ID (`884`) and prints the MAC address, signal strength (RSSI), and raw broadcast payload.
+### Direct Command-Line Control
+To test light control directly via BLE (bypassing MQTT):
+
+```bash
+# Syntax: python tools/holman_direct_control.py <MAC_ADDRESS> <BRIGHTNESS_0_TO_100>
+python tools/holman_direct_control.py F3:61:AC:E8:BB:78 50
+```
