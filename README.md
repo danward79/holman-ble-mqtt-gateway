@@ -47,20 +47,25 @@ Handshake Frame: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 00 2e ff 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 ```
 
-#### 2. ON / Dimming Payload (20 Bytes)
-Brightness is represented as an 8-bit unsigned integer (`0x00` to `0xFF`) scaled from percentage values (`0%` to `100%`) at **Byte 18** (0-indexed):
+#### 2. ON / Dimming Payload (20 Bytes Detailed Byte Map)
+
+Brightness is represented as an 8-bit unsigned integer (`0x00` to `0xFF`) scaled from percentage values (`0%` to `100%`) at **Byte 18**:
 
 $$\text{Brightness Byte} = \left\lfloor \frac{\text{Percentage}}{100} \times 255 \right\rfloor$$
 
-```text
-Byte Map:
-[00-01] Header      : 00 2e
-[02-09] Command Block: 00 03 7f 11 00 14 1e 00
-[10-15] Padding     : ff 00 00 00 00 00
-[16-17] Fixed Scale : 64 00
-[18]    Brightness  : [0x00 - 0xFF]  <-- Target dimming value (0-255)
-[19]    Tail        : 00
-```
+| Byte Index | Hex Value (Default) | Function / Description |
+| :--- | :--- | :--- |
+| `[00 - 01]` | `00 2e` | Frame Header |
+| `[02]` | `00` | Scene ID |
+| `[03]` | `03` | Schedule Enable Flags (`Bit 0`: Start Time Enable, `Bit 1`: Stop Time Enable. `0x03` = both active) |
+| `[04]` | `7f` | Active Days of Week bitmask (`0x7F` = `01111111` = All 7 days) |
+| `[05 - 06]` | `11 00` | Schedule Start Time |
+| `[07 - 08]` | `14 1e` | Schedule Stop Time |
+| `[09]` | `00` | Reserved / Unknown |
+| `[10 - 15]` | `ff 00 00 00 00 00` | Payload Padding Block |
+| `[16 - 17]` | `64 00` | Fixed Scaling Factor |
+| `[18]` | `[0x00 - 0xFF]` | **Target Brightness Value** (`0` to `255`) |
+| `[19]` | `00` | Frame Tail |
 
 * **Example (50% Brightness / 127 Dec / `0x7F`):**
   `00 2e 00 03 7f 11 00 14 1e 00 ff 00 00 00 00 00 64 00 7f 00`
@@ -77,6 +82,7 @@ holman-ble-mqtt-gateway/
 ├── holman-mqtt.service         # Systemd service unit template
 ├── README.md                   # Documentation
 ├── LICENSE                     # MIT License
+├── requirements.txt            # Python dependencies
 ├── .gitignore                  # Git exclusion rules
 └── tools/
     ├── holman_pure_sniffer.py  # Passive BLE sniffer utility
@@ -97,7 +103,7 @@ sudo apt install avahi-daemon libnss-mdns python3-pip git
 Install the Python dependencies:
 
 ```bash
-pip install bleak paho-mqtt
+pip install -r requirements.txt
 ```
 
 ---
